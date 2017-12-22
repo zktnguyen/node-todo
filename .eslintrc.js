@@ -9,6 +9,9 @@ module.exports = {
     "parserOptions": {
         "sourceType": "module"
     },
+    "globals": {
+        "expect": true
+    },
     "rules": {
         "indent": [
             "error",
