@@ -4,23 +4,12 @@ const { ObjectID } = require('mongodb');
 
 const { app } = require('../');
 const { Todo } = require('../models/todo');
+const { User } = require('../models/user');
+const { seedTodos, populateTodos, 
+  seedUsers, populateUsers } = require('./seed');
 
-const seedTodos = [{ 
-  _id: new ObjectID(), 
-  text: 'first test todo'
-}, 
-{ 
-  _id: new ObjectID(), 
-  text: 'second test todo',
-  completed: true,
-  completedAt: 333
-}];
-
-beforeEach(done => {
-  Todo.remove({}).then(() => {
-    return Todo.insertMany(seedTodos);
-  }).then(() => done());
-});
+beforeEach(populateUsers);
+beforeEach(populateTodos);
 
 describe('POST /todos', () => {
   it('should create a new todo', done => {
@@ -171,4 +160,74 @@ describe('PATCH /todos/:id', () => {
       .end(done);
   });
 
+});
+
+describe('GET /users/me', () => {
+  it('should return user if authenticated', done => {
+    request(app)
+      .get('/users/me')
+      .set('x-auth', seedUsers[0].tokens[0].token)
+      .expect(200)
+      .expect(res => {
+        expect(res.body._id).toBe(seedUsers[0]._id.toHexString());
+        expect(res.body.email).toBe(seedUsers[0].email);
+      })
+      .end(done);
+  });
+
+  it('should return 401 if not authenticated', done => {
+    request(app)
+      .get('/users/me')
+      .expect(401)
+      .expect(res => {
+        expect(res.body).toEqual({});
+      })
+      .end(done);
+  });
+});
+
+describe('POST /users', () => {
+  it('should create a user', done => {
+    const email = 'kimt@example.com';
+    const password = 'sdflkmsdfl1222';
+
+    request(app)
+      .post('/users')
+      .send({ email, password })
+      .expect(200)
+      .expect(res => {
+        expect(res.headers['x-auth']).toBeTruthy();
+        expect(res.body._id).toBeTruthy();
+        expect(res.body.email).toEqual(email);
+      })
+      .end(err => {
+        if(err) {
+          return done(err);
+        }
+        User.findOne({email}).then(user => {
+          expect(user).toBeTruthy();
+          done();
+        });
+      });
+  });
+
+  it('should return validation errors if request is invalid', done => {
+    request(app)
+      .post('/users')
+      .send({ email: 'and', password: 'slm'})
+      .expect(400)
+      .end(done);
+  });
+
+  it('should not create user if email is used', done => {
+    
+    request(app)
+      .post('/users')
+      .send({ 
+        email: seedUsers[0].email, 
+        password: 'adsfklsmdflk22' 
+      })
+      .expect(400)
+      .end(done);
+  });
 });
