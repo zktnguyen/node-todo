@@ -7,6 +7,7 @@ var _ = require('lodash');
 var { mongoose } = require('./db');
 var { Todo } = require('./models/todo');
 var { User } = require('./models/user');
+var { authenticate } = require('./middleware/authenticate');
 
 var app = express();
 
@@ -87,6 +88,25 @@ app.patch('/todos/:id', (req, res) => {
       res.send({todo});
     }).catch(e => res.status(400).send());
 
+});
+
+app.post('/users', (req,res) => {
+  let body = _.pick(req.body, ['email', 'password']);
+
+  let newUser = new User({
+    email: body.email,
+    password: body.password
+  });
+  
+  newUser.save().then(() => {
+    return newUser.generateAuthToken();
+  }).then(token => {
+    res.header('x-auth', token).send(newUser.toAuthJSON());
+  }).catch(e => res.status(400).send({e}));
+});
+
+app.get('/users/me', authenticate, (req, res) => {
+  res.send(req.user);
 });
 
 app.listen(port, () => console.log('Started on port 3000'));
