@@ -207,7 +207,7 @@ describe('POST /users', () => {
         User.findOne({email}).then(user => {
           expect(user).toBeTruthy();
           done();
-        });
+        }).catch(e => done(e));
       });
   });
 
@@ -229,5 +229,53 @@ describe('POST /users', () => {
       })
       .expect(400)
       .end(done);
+  });
+});
+
+describe('POST /users/login', () => {
+  it('should login user and return auth token', done => {
+    request(app)
+      .post('/users/login')
+      .send({
+        email: seedUsers[1].email,
+        password: seedUsers[1].password
+      })
+      .expect(200)
+      .expect(res => {
+        expect(res.headers['x-auth']).toBeTruthy();
+      })
+      .end((err, res) => {
+        if (err) {
+          done(err);
+        }
+
+        User.findById(seedUsers[1]._id).then(user => {
+          expect(user.tokens[0].access).toBe('auth');
+          expect(user.tokens[0].token).toBe(res.headers['x-auth']);
+          done();
+        }).catch(e => done(e));
+      });
+  });
+
+  it('should reject invalid login', done => {
+    request(app)
+      .post('/users/login')
+      .send({
+        email: seedUsers[1].email,
+        password: 'selkdmslkfm'
+      })
+      .expect(400)
+      .expect(res => {
+        expect(res.headers['x-auth']).toBeFalsy();
+      })
+      .end((err, res) => {
+        if (err) {
+          return done(err);
+        }
+        User.findById(seedUsers[1]._id).then(user => {
+          expect(user.tokens.length).toBeFalsy();
+          done();
+        }).catch(e => done(e));
+      });
   });
 });
